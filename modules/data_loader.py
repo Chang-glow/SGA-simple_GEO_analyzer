@@ -26,7 +26,7 @@ class DataLoader:
     @staticmethod
     def get_path(data_dirs: str, prompt: str, debug: bool = False) -> str:
         """获取本地文件位置
-        (其实这玩意目前没什么用也不想重构他了但是函数本身又有点作用所以就放在这吧(瘫))
+        (其实这玩意目前没什么用也不想动他了但是函数本身好像又有点聊胜于无的作用所以就放在这吧(瘫))
 
         Args：
             prompt: 输入提示，用于指示想获得的路径
@@ -89,8 +89,9 @@ class DataLoader:
             Exception: 下载错误时抛出
         """
         # 确定本地位置
+        data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
         file_name = os.path.basename(url)
-        local_path = os.path.join(self.cfg.data_dir, file_name)
+        local_path = os.path.join(data_dir, file_name)
 
         # 检验是否存在文件
         if os.path.exists(local_path):
@@ -131,7 +132,7 @@ class DataLoader:
             Exception: 其他错误时抛出
         """
         # 读取配置项
-        data_dir = self.cfg.data_dir
+        data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
         tar_gene = self.cfg.tar_gene
         gse_id = self.cfg.gse_id
 

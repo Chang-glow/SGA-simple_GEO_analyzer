@@ -1,0 +1,7 @@
+**/__pycache__/
+.idea
+*.log
+/data/
+/error_logs/
+/outputs/
+/res/

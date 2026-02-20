@@ -198,7 +198,7 @@ class Analyzer(ABC):
     def _data_storage(self, result_df: pd.DataFrame, save_format: str):
         """存储DataFrame数据至pkl和csv"""
         # 读取配置
-        data_dir = self.cfg.data_dir
+        data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
         gse_id = self.cfg.gse_id
 
         # 映射文件格式向格式名与后缀名
@@ -278,7 +278,8 @@ class FileAnalyzer(Analyzer):
     """基于读取pkl文件的数据分析流程"""
     def __init__(self, cfg: Config):
         super().__init__(cfg)
-        self.data_path = os.path.join(self.cfg.data_dir, "pkl", f"{self.cfg.gse_id}_processed_bundle.pkl")
+        data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
+        self.data_path = os.path.join(data_dir, "pkl", f"{self.cfg.gse_id}_processed_bundle.pkl")
 
     def read_pkl(self) -> dict:
         """读取pkl文件

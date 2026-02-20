@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
+from paths import FIGURE_DIR
 from modules.correlation_calculater import fetch_gene_vector
 from modules.utils.config_manager import Config, DataHandler
 from modules.utils import loggers
@@ -105,7 +106,7 @@ class FigurePlotter(ABC):
     def _save_corr_plot(self, x: pd.Series, y: pd.Series, info: pd.DataFrame):
         """画图并存储"""
         # 读取配置
-        tar_gene, data_dir = self.cfg.tar_gene, self.cfg.data_dir
+        tar_gene, data_dir = self.cfg.tar_gene, os.path.join(self.cfg.data_dir, self.cfg.gse_id)
 
         plt.figure(figsize=(6, 6))
 
@@ -122,11 +123,8 @@ class FigurePlotter(ABC):
         plt.xlabel(f"{tar_gene} Expression")
         plt.ylabel(f"{gene_info} Expression")
 
-        # 保存路径
-        fig_dir = os.path.join(os.path.dirname(data_dir), "res", "figures")
-        if not os.path.exists(fig_dir):
-            os.makedirs(fig_dir)
-        fig_path = os.path.join(fig_dir, f"{matrix_info}_{gene_info}.png")
+        # 保存图片
+        fig_path = os.path.join(FIGURE_DIR, f"{matrix_info}_{gene_info}.png")
         plt.savefig(fig_path, dpi=300, bbox_inches='tight')
         plt.close()
 
@@ -176,7 +174,7 @@ class FilePlotter(FigurePlotter):
     def _load_data(self):
         """从文件中加载数据"""
         # 读取配置
-        data_dir, gse_id = self.cfg.data_dir, self.cfg.gse_id
+        data_dir, gse_id = os.path.join(self.cfg.data_dir, self.cfg.gse_id), self.cfg.gse_id
 
         # 执行加载
         res_df_path = os.path.join(data_dir, "pkl", f"{gse_id}_correlation_summary.pkl")

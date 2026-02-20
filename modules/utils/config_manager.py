@@ -19,10 +19,6 @@ class Config:
     p_threshold: float = 0.05
     signs: List[str] = field(default_factory=lambda: ["positive", "negative"])
 
-    def __post_init__(self):
-        # 每个数据集独立文件夹
-        self.data_dir: str = cast(str, os.path.join(DATA_DIR, self.gse_id))
-
 
 @dataclass
 class DataHandler:
