@@ -1,0 +1,10 @@
+tar_gene: Polb
+gse_id: GSE300437
+data_dir: D:\magic_dir\polb\SGA-simple_GEO_analyzer\data
+storage: true
+strict_mode: false
+debug: false
+p_threshold: 0.05
+signs:
+- positive
+- negative

@@ -2,7 +2,7 @@ import hydra
 import logging
 import time
 
-from paths import FIGURE_DIR
+from paths import FIGURE_DIR, dirs_init
 from modules.data_loader import DataLoader
 from modules.correlation_calculater import DataAnalyzer
 from modules.fig_plotter import DataPlotter
@@ -14,6 +14,7 @@ from modules.utils.config_manager import Config, DataHandler
 @hydra.main(version_base=None, config_name="Config")
 def main(cfg: Config):
     # 初始化
+    dirs_init()
     logging.getLogger().setLevel(logging.INFO)
     logger = loggers.get_logger()
     logger.info("---欢迎使用本项目---")

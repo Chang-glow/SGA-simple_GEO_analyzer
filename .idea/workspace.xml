@@ -4,24 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="dbee2472-0886-4215-990c-d0bb384b7a85" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/SGA-simple_GEO_analyzer.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/correlation_calculater.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/data_loader.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/fig_plotter.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/utils/__init__.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/utils/config_manager.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/utils/loggers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/paths.py" afterDir="false" />
+    <list default="true" id="dbee2472-0886-4215-990c-d0bb384b7a85" name="更改" comment="v1.0">
+      <change afterPath="$PROJECT_DIR$/conf/config.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/conf/hydra.yaml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/conf/overrides.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,14 +42,15 @@
     "Python.fig_plotter.executor": "Run",
     "Python.geo_data_get.executor": "Run",
     "Python.main.executor": "Run",
+    "Python.回文.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "master",
-    "last_opened_file_path": "D:/miniconda/condabin/conda.bat",
+    "last_opened_file_path": "D:/magic_dir/polb/SGA-simple_GEO_analyzer/conf",
     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
-  <component name="RunManager" selected="Python.fig_plotter">
+  <component name="RunManager">
     <configuration name="correlation_calculater" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="SGA-simple_GEO_analyzer" />
       <option name="ENV_FILES" value="" />
@@ -174,6 +163,19 @@
       <option name="presentableId" value="Default" />
       <updated>1770984329045</updated>
     </task>
+    <task id="LOCAL-00001" summary="v1.0">
+      <option name="closed" value="true" />
+      <created>1771584637423</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1771584637424</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="v1.0" />
+    <option name="LAST_COMMIT_MESSAGE" value="v1.0" />
   </component>
 </project>
