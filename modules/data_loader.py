@@ -8,6 +8,7 @@ import pandas as pd
 
 from modules.utils import loggers
 from modules.utils.config_manager import Config
+from modules.utils.parse_interpreter import parse_interpreter
 
 
 class DataLoader:
@@ -22,6 +23,8 @@ class DataLoader:
         """
         self.cfg: Config = cfg
         self._data: Optional[Dict[str, pd.DataFrame]] = None
+        self._chosen_meta = None
+        self._download_data = None
 
     @staticmethod
     def get_path(data_dirs: str, prompt: str, debug: bool = False) -> str:
@@ -68,7 +71,9 @@ class DataLoader:
             RuntimeError: 数据不存在时抛出错误
         """
         if not self._data:
-            data = self.get_data()
+            gse = self._get_gse()
+            self._user_selection_flow(gse)
+            data = self._build_bundle()
             if not data:
                 raise RuntimeError("数据未下载创建")
             if data:
@@ -119,11 +124,11 @@ class DataLoader:
                 os.remove(local_path)
             return None
 
-    def get_data(self) -> Optional[dict]:
-        """获取数据内容
+    def _get_gse(self) -> GEOparse.GEOTypes.GSE:
+        """获取GEO数据包
 
         Returns:
-            bundle: 打包的元数据和数据矩阵字典，建为矩阵名称（元数据为meta），值为对应DataFrame
+            gse: 下载的数据包
 
         Raises:
             TypeError: 输入非字符串时抛出错误
@@ -133,12 +138,7 @@ class DataLoader:
         """
         # 读取配置项
         data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
-        tar_gene = self.cfg.tar_gene
         gse_id = self.cfg.gse_id
-
-        strict_mode = self.cfg.strict_mode
-        storage = self.cfg.storage
-        debug = self.cfg.debug
 
         dest_dir = os.path.normpath(data_dir)
 
@@ -152,11 +152,7 @@ class DataLoader:
             if not is_gse:
                 raise ValueError("请输入正确的GSE ID！")
 
-            if not os.path.exists(dest_dir):
-                DataLoader._logger.warning(f"不存在{dest_dir}位置的文件夹，已创建该文件夹")
-                os.makedirs(dest_dir)
-
-            # 1.读取元数据
+            # 下载所需GSE数据库
             DataLoader._logger.info(f"开始下载或调用现存{gse_id}_family.soft.gz")
             DataLoader._logger.info("正在检索远程服务器或本地缓存...")
             gse = GEOparse.get_GEO(geo=gse_id, destdir=dest_dir)
@@ -164,11 +160,24 @@ class DataLoader:
             if not gse:
                 raise Exception("出现未知错误，请检查\n1、GSE编号是否正确\n2、下载地址是否正确/有权限写入")
 
-            meta = gse.phenotype_data
-            if not meta.empty:
-                DataLoader._logger.info(f"元数据提取成功，样本数{len(meta)}")
+            return gse
 
-            # 2.读取数据
+        except ValueError as e:
+            DataLoader._logger.error(f"【输入错误】:{e}")
+
+        except TypeError as e:
+            DataLoader._logger.error(f"【类型错误】:{e}")
+
+        except Exception as e:
+            DataLoader._logger.error(f"【未知错误】:{e}")
+
+    def _user_selection_flow(self, gse) -> None:
+        """用户交互下载数据
+
+        Args:
+            gse: 下载的GES对象
+        """
+        try:
             # 从gse中读取补充文件列表
             sp_files = gse.metadata.get('supplementary_file', [])
             if not sp_files:
@@ -187,19 +196,8 @@ class DataLoader:
             for i, url in enumerate(candidates):
                 print(f"[{i}] {os.path.basename(url)}")
 
-            selected_urls = []
-            while True:
-                selected_idx = input("请选择需要的文件序号（留空时回车结束）：")
-                if not selected_idx:
-                    break
-
-                # 简单确认输入是否合法
-                if selected_idx.isdigit() and int(selected_idx) < len(candidates):
-                    idx = int(selected_idx)
-                    if candidates[idx] not in selected_urls:
-                        selected_urls.append(candidates[idx])
-                else:
-                    print("无效输入，请重新输入序号。")
+            selected_idx = parse_interpreter(prompt="请输入需要的矩阵序号(如1:8,11):", max_length=len(candidates))
+            selected_urls = [candidates[i] for i in selected_idx]
 
             # 下载选中的文件
             downloaded_data = {}
@@ -215,31 +213,82 @@ class DataLoader:
             if not downloaded_data:
                 raise Exception("出现未知错误，请检查\n1、GSE编号是否正确\n2、下载地址是否正确/有权限写入")
 
-            # 3.处理得到的meta和data，对齐筛选等
-            # 手动选择meta中的需要的title
-            unique_groups = meta['title'].unique()
+            self._download_data = downloaded_data
 
-            print("\n--- 发现以下样本分组描述 ---")
+            # 提取meta
+            meta = gse.phenotype_data
+            if not meta.empty:
+                DataLoader._logger.info(f"元数据提取成功，样本数{len(meta)}")
+
+            # 手动选择meta中的需要的title
+            self._group_select(meta)
+
+        except FileNotFoundError as e:
+            DataLoader._logger.error(f"【文件未找到】:{e}")
+        except Exception as e:
+            DataLoader._logger.error(f"【未知错误】:{e}")
+
+    def _group_select(self, meta) -> None:
+        """从元数据中选择所需内容的双层状态机
+
+        Args:
+            meta: 元数据
+        """
+        # 默认尝试“title”
+        current_col = "title" if "title" in meta.columns else meta.columns[0]
+        # 选列选组状态机
+        while True:  # 外层循环选矩阵
+            unique_groups = meta[current_col].unique()
+            print(f"\n--- 当前查看列:[{current_col}]发现以下样本分组描述 ---")
             for i, group_name in enumerate(unique_groups):
                 print(f"[{i}] {group_name}")
 
-            selected_group_indices = []
-            while True:
-                choice = input("请输入你想保留的分组序号（留空时回车结束）：").strip()
-                if not choice:
-                    break
+            # 故技重施
+            selected_group_indices = parse_interpreter(
+                prompt="请输入需要的矩阵序号(如1:8,11，输入‘m’重新选择列):",
+                max_length=len(unique_groups),
+                whitelist="m"
+            )
 
-                # 故技重施
-                if choice.isdigit() and int(choice) < len(unique_groups):
-                    selected_group_indices.append(int(choice))
-                else:
-                    print("无效输入，请重新输入分组序号。")
+            # 若列中没有矩阵信息则重新选列
+            if selected_group_indices == "m":
+                print("\n--- 所有元数据列 ---")
+                for i, col in enumerate(meta.columns):  # 内层循环选列
+                    print(f"[{i}] {col}")
+                selected_col = parse_interpreter(
+                    prompt="请选择(可能)包含分组信息的列序号:",
+                    max_length=len(meta.columns)
+                )
+                # 更新当前列回到上级循环
+                current_col = meta.columns[selected_col[0]]
+                continue
 
-            # 根据选择的目标筛选meta
-            target_groups = [unique_groups[i] for i in selected_group_indices]
-            condition = meta['title'].isin(target_groups)
-            chosen_meta = meta[condition]
+            # 若正常选中矩阵序号则过滤meta
+            if isinstance(selected_group_indices, list):
+                target_groups = [unique_groups[i] for i in selected_group_indices]
+                condition = meta[current_col].isin(target_groups)
+                self._chosen_meta = meta[condition]
+                return
 
+    def _build_bundle(self) -> Optional[dict]:
+        """打包处理过的数据
+
+        Returns:
+            bundle: 打包过的数据，键为矩阵名，值为矩阵
+        """
+        # 读取配置
+        data_dir = self.cfg.data_dir
+        gse_id = self.cfg.gse_id
+        tar_gene = self.cfg.tar_gene
+
+        strict_mode = self.cfg.strict_mode
+        storage = self.cfg.storage
+        debug = self.cfg.debug
+
+        chosen_meta = self._chosen_meta
+        downloaded_data = self._download_data
+
+        try:
             # 将data加载到df，并处理
             bundle = {"meta": chosen_meta}
             for datafile_name, file_path in downloaded_data.items():
@@ -306,12 +355,6 @@ class DataLoader:
             self._data = bundle
             return bundle
 
-        except ValueError as e:
-            DataLoader._logger.error(f"【输入错误】:{e}")
-
-        except TypeError as e:
-            DataLoader._logger.error(f"【类型错误】:{e}")
-
         except Exception as e:
             DataLoader._logger.error(f"【未知错误】:{e}")
 
@@ -321,4 +364,4 @@ if __name__ == "__main__":
     test_tar_gene = "Polb"
     test_cfg = Config(tar_gene=test_tar_gene, gse_id=test_gse_id)
     loader = DataLoader(test_cfg)
-    data_bundle = loader.get_data()
+    data_bundle = loader.loader()
