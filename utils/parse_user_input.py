@@ -1,7 +1,7 @@
 from typing import Optional
 
 
-def parse_interpreter(
+def parse_user_input(
         number_parse: str = None,
         prompt: str = "请输入数字",
         max_length: int = None,
@@ -99,15 +99,19 @@ def is_digit(ls: list) -> bool:
     return True
 
 
-if __name__ == "__main__":
+def main():
     flag = False
-    whitelist = "m"
-    res = parse_interpreter(number_parse="a")
+    test_whitelist = "m"
+    res = parse_user_input(number_parse="a")
     for i in res:
-        flag = True if isinstance(i, int) or i in whitelist else False
+        flag = True if isinstance(i, int) or i in test_whitelist else False
         if not flag:
             break
 
     if flag:
         print(res)
         print("Done!")
+
+
+if __name__ == "__main__":
+    main()

@@ -6,10 +6,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from paths import FIGURE_DIR
+from utils.paths import FIGURE_DIR
 from modules.correlation_calculater import fetch_gene_vector
-from modules.utils.config_manager import Config, DataHandler
-from modules.utils import loggers
+from utils import Config, DataHandler, loggers
 
 
 class FigurePlotter(ABC):
@@ -22,10 +21,29 @@ class FigurePlotter(ABC):
 
     def __init__(self, cfg: Config):
         self.cfg = cfg
-        self._res_df: Optional[pd.DataFrame] = None
-        self._bundle: Optional[dict] = None
+        self._gene_corr_table: Optional[pd.DataFrame] = None
+        self._meta_matrix_pack: Optional[dict] = None
         # 内部判断是否画图
         self._plotter = False
+
+    @classmethod
+    def create(cls, cfg: Config, data: DataHandler):
+        """根据cfg检查使用哪个子类"""
+        data_dir = os.path.join(cfg.data_dir, cfg.gse_id)
+        data_pack_path = os.path.join(data_dir, "pkl", f"{cfg.gse_id}_processed_pack.pkl")
+        gene_corr_path = os.path.join(data_dir, "pkl", f"{cfg.gse_id}_correlation_summary.pkl")
+
+        is_pack = os.path.exists(data_pack_path)
+        is_table = os.path.exists(gene_corr_path)
+
+        if is_pack and is_table:
+            return FilePlotter(cfg)
+        elif (is_pack and not is_table) or (is_table and not is_pack):
+            lack = "pack" if is_table else "table"
+            cls._logger.warning(f"{lack}数据缺失，分析可能出错")
+            return FilePlotter(cfg)
+        else:
+            return DataPlotter(cfg, data)
 
     @abstractmethod
     def fig_plotter(self):
@@ -58,14 +76,14 @@ class FigurePlotter(ABC):
         p_thr, signs = self.cfg.p_threshold, self.cfg.signs
 
         # 构建P值条件
-        p_condition = self._res_df["P_value"] < p_thr
+        p_condition = self._gene_corr_table["P_value"] < p_thr
         # 构建相关性条件(可多选)
         sign_condition = None
         for sign in signs:
             if sign == "negative":
-                cond = self._res_df["R"] < 0
+                cond = self._gene_corr_table["R"] < 0
             elif sign == "positive":
-                cond = self._res_df["R"] > 0
+                cond = self._gene_corr_table["R"] > 0
             else:
                 self._logger.warning(f"将忽略未知符号：{sign}")
                 continue
@@ -88,7 +106,7 @@ class FigurePlotter(ABC):
         self._load_data()
 
         # 根据符号构建筛选条件
-        targets = self._res_df[p_condition & sign_condition]
+        targets = self._gene_corr_table[p_condition & sign_condition]
 
         FigurePlotter._logger.info("绘图中...")
         for _, row in targets.iterrows():
@@ -96,7 +114,7 @@ class FigurePlotter(ABC):
             gene_name = row['Gene']
             FigurePlotter._logger.debug(f"当前绘图基因 {gene_name}")
 
-            df = self._bundle[matrix_name]
+            df = self._meta_matrix_pack[matrix_name]
             x_vec, y_vec = self._get_vecs(df, gene_name)
 
             self._save_corr_plot(x_vec, y_vec, row)
@@ -139,23 +157,23 @@ class DataPlotter(FigurePlotter):
             data: 数据传递类，包括相关性分析DataFrame和筛选后的原始基因DataFrame数据
         """
         super().__init__(cfg)
-        self.res_df: pd.DataFrame = data.res_df
-        self.bundle: dict = data.bundle
+        self.gene_corr_table: pd.DataFrame = data.gene_corr_table
+        self.meta_matrix_pack: dict = data.meta_matrix_pack
 
     def fig_plotter(self):
         """筛选所需目标并画图"""
         # 读取索引和数据仓库
         FilePlotter._logger.info("读取索引和数据中...")
-        if not self._res_df and not self._bundle:
+        if not self._gene_corr_table and not self._meta_matrix_pack:
             self._load_data()
         FigurePlotter._logger.info("索引和数据读取成功！")
         self.figplotter()
 
     def _load_data(self):
-        if self.res_df is not None and not self.res_df.empty:
-            self._res_df = self.res_df
-        if self.bundle:
-            self._bundle = self.bundle
+        if self.gene_corr_table is not None and not self.gene_corr_table.empty:
+            self._gene_corr_table = self.gene_corr_table
+        if self.meta_matrix_pack:
+            self._meta_matrix_pack = self.meta_matrix_pack
 
 
 class FilePlotter(FigurePlotter):
@@ -166,7 +184,7 @@ class FilePlotter(FigurePlotter):
     def fig_plotter(self):
         """筛选所需目标并画图"""
         FilePlotter._logger.info("从pkl中读取索引和数据中...")
-        if not self._res_df or not self._bundle:
+        if not self._gene_corr_table or not self._meta_matrix_pack:
             self._load_data()
         FigurePlotter._logger.info("索引和数据读取成功！")
         self.figplotter()
@@ -177,10 +195,10 @@ class FilePlotter(FigurePlotter):
         data_dir, gse_id = os.path.join(self.cfg.data_dir, self.cfg.gse_id), self.cfg.gse_id
 
         # 执行加载
-        res_df_path = os.path.join(data_dir, "pkl", f"{gse_id}_correlation_summary.pkl")
-        bundle_path = os.path.join(data_dir, "pkl", f"{gse_id}_processed_bundle.pkl")
-        self._res_df = pd.read_pickle(res_df_path)
-        self._bundle = pd.read_pickle(bundle_path)
+        gene_corr_path = os.path.join(data_dir, "pkl", f"{gse_id}_correlation_summary.pkl")
+        data_pack_path = os.path.join(data_dir, "pkl", f"{gse_id}_processed_pack.pkl")
+        self._gene_corr_table = pd.read_pickle(gene_corr_path)
+        self._meta_matrix_pack = pd.read_pickle(data_pack_path)
 
 
 if __name__ == "__main__":

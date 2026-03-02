@@ -1,11 +1,9 @@
-import os.path
-
 import pandas as pd
 from dataclasses import dataclass, field
-from typing import Optional, List, cast
+from typing import Optional, List
 from hydra.core.config_store import ConfigStore
 
-from paths import DATA_DIR
+from utils.paths import DATA_DIR
 
 
 @dataclass
@@ -22,8 +20,8 @@ class Config:
 
 @dataclass
 class DataHandler:
-    bundle: Optional[dict] = None
-    res_df: Optional[pd.DataFrame] = None
+    meta_matrix_pack: Optional[dict] = None
+    gene_corr_table: Optional[pd.DataFrame] = None
 
 
 cs = ConfigStore.instance()

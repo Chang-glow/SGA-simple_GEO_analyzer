@@ -8,3 +8,10 @@ p_threshold: 0.05
 signs:
 - positive
 - negative
+
+# hydra配置
+hydra:
+  job_logging:
+    handlers:
+      console:
+        level: INFO

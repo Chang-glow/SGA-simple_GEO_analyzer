@@ -6,8 +6,7 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from modules.utils import loggers
-from modules.utils.config_manager import Config, DataHandler
+from utils import loggers, Config, DataHandler
 
 
 def fetch_gene_vector(df, tar_gene) -> pd.Series:
@@ -86,8 +85,21 @@ class Analyzer(ABC):
             cfg: 基础配置
         """
         self.cfg = cfg
-        self._bundle: Optional[dict] = None
-        self._ana_res: Optional[pd.DataFrame] = None
+        self._meta_matrix_pack: Optional[dict] = None
+        self._gene_corr: Optional[pd.DataFrame] = None
+
+    @classmethod
+    def create(cls, cfg: Config, data: DataHandler):
+        """根据cfg检查使用哪个子类"""
+        data_dir = os.path.join(cfg.data_dir, cfg.gse_id)
+
+        gene_corr_path = os.path.join(data_dir, "pkl", f"{cfg.gse_id}_correlation_summary.pkl")
+        if os.path.exists(gene_corr_path) and not cfg.debug:
+            cls._logger.info(f"发现现存分析结果：{gene_corr_path}，跳过相关性分析")
+            return FileAnalyzer(cfg)
+        elif data.meta_matrix_pack:
+            cls._logger.info("开始计算相关性")
+            return DataAnalyzer(cfg, data)
 
     @staticmethod
     def scipy_analyze(vec1: pd.Series, vec2: pd.Series) -> tuple[Optional[float], Optional[float]]:
@@ -119,11 +131,11 @@ class Analyzer(ABC):
         """缓存读取数据
 
         Returns:
-            self._bundle: 读取到的{文件名：矩阵}字典，存为属性
+            self._meta_matrix_pack: 读取到的{文件名：矩阵}字典，存为属性
         """
-        if self._bundle is None:
-            self._bundle = self._load_data()
-        return self._bundle
+        if self._meta_matrix_pack is None:
+            self._meta_matrix_pack = self._load_data()
+        return self._meta_matrix_pack
 
     @property
     def significant(self):
@@ -133,30 +145,30 @@ class Analyzer(ABC):
 
     def calculate(self) -> pd.DataFrame:
         """用于调用数据的API"""
-        if self._ana_res is not None and not self._ana_res.empty:
-            return self._ana_res
+        if self._gene_corr is not None and not self._gene_corr.empty:
+            return self._gene_corr
         try:
             return self.data_analyzer()
         except Exception:
             self._logger.exception("分析失败")
             raise
 
-    def _calculater(self, bundle: dict) -> Optional[pd.DataFrame]:
+    def _calculater(self, meta_matrix_pack: dict) -> Optional[pd.DataFrame]:
         """分析主pipeline
 
         Args:
-            bundle: 打包的测序矩阵数据，格式为{文件名: 对应矩阵数据}
+            meta_matrix_pack: 打包的测序矩阵数据，格式为{文件名: 对应矩阵数据}
 
         Returns:
-            result_df: DataFrame格式的分析结果
+            gene_corr_table: DataFrame格式的分析结果
         """
         # 读取配置
         tar_gene = self.cfg.tar_gene
 
-        # 提取bundle里的数据计算
+        # 提取pack里的数据计算
         results_list = []
         df: pd.DataFrame
-        for name, df in bundle.items():
+        for name, df in meta_matrix_pack.items():
             # 避开元数据矩阵
             if name == "meta":
                 continue
@@ -189,11 +201,32 @@ class Analyzer(ABC):
         # 转化为DataFrame，以便画图
         if results_list:
             Analyzer._logger.info("相关性计算完成！")
-            result_df = pd.DataFrame(results_list)
+            gene_corr_table = pd.DataFrame(results_list)
         else:
             return None
 
-        return result_df
+        return gene_corr_table
+
+    def _data_analyzer(self):
+        """调用分析主pipeline，串联数据读取和分析得出相关性
+
+        Returns:
+            gene_corr_table: 目标基因和常见标识基因相关性分析结果及数据
+        """
+        meta_matrix_pack = self._load_data()
+        if meta_matrix_pack:
+            DataAnalyzer._logger.info("读取成功，将继续分析")
+
+        result_df = self._calculater(meta_matrix_pack)
+        if result_df is not None and not result_df.empty:
+            self._gene_corr = result_df
+            if self.cfg.storage:
+                self._data_storage(result_df, "pkl")
+                self._data_storage(result_df, "csv")
+            return result_df
+        else:
+            DataAnalyzer._logger.error("结果矩阵为空")
+            raise
 
     def _data_storage(self, result_df: pd.DataFrame, save_format: str):
         """存储DataFrame数据至pkl和csv"""
@@ -243,35 +276,15 @@ class DataAnalyzer(Analyzer):
     """基于直接读取DataFrame数据的分析流程"""
     def __init__(self, cfg: Config, data: DataHandler):
         super().__init__(cfg)
-        self.bundle = data.bundle
+        self.meta_matrix_pack = data.meta_matrix_pack
 
     def _load_data(self) -> dict:
-        return self.bundle
+        return self.meta_matrix_pack
 
     def data_analyzer(self) -> Optional[pd.DataFrame]:
-        """调用分析主pipeline，串联数据读取和分析得出相关性
-
-        Returns:
-            res_df: 目标基因和常见标识基因相关性分析结果及数据
-        """
-        # 读取配置
-        storage = self.cfg.storage
-
-        DataAnalyzer._logger.info("从打包的bundle中读取数据中...")
-        bundle = self._load_data()
-        if bundle:
-            DataAnalyzer._logger.info("读取成功，将继续分析")
-
-        result_df = self._calculater(bundle)
-        if result_df is not None and not result_df.empty:
-            self._ana_res = result_df
-            if storage:
-                self._data_storage(result_df, "pkl")
-                self._data_storage(result_df, "csv")
-            return result_df
-        else:
-            DataAnalyzer._logger.error("结果矩阵为空")
-            raise
+        """调用分析主pipeline，串联数据读取和分析得出相关性"""
+        DataAnalyzer._logger.info("从打包的pack中读取数据中...")
+        return self._data_analyzer()
 
 
 class FileAnalyzer(Analyzer):
@@ -279,13 +292,13 @@ class FileAnalyzer(Analyzer):
     def __init__(self, cfg: Config):
         super().__init__(cfg)
         data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
-        self.data_path = os.path.join(data_dir, "pkl", f"{self.cfg.gse_id}_processed_bundle.pkl")
+        self.data_path = os.path.join(data_dir, "pkl", f"{self.cfg.gse_id}_processed_pack.pkl")
 
     def read_pkl(self) -> dict:
         """读取pkl文件
 
         Returns:
-            data_dict: 从pkl文件中提取的bundle
+            data_dict: 从pkl文件中提取的数据包
         """
         try:
             if not isinstance(self.data_path, str):
@@ -315,34 +328,14 @@ class FileAnalyzer(Analyzer):
             FileAnalyzer._logger.error(f"【未知错误】：{e}")
 
     def _load_data(self) -> dict:
-        if not self._bundle:
-            self._bundle = self.read_pkl()
-        return self._bundle
+        if not self._meta_matrix_pack:
+            self._meta_matrix_pack = self.read_pkl()
+        return self._meta_matrix_pack
 
     def data_analyzer(self) -> Optional[pd.DataFrame]:
-        """调用分析主pipeline，串联数据读取和分析得出相关性
-
-        Returns:
-            res_df: 目标基因和常见标识基因相关性分析结果及数据
-        """
-        # 读取配置
-        storage = self.cfg.storage
-
+        """调用分析主pipeline，串联数据读取和分析得出相关性"""
         FileAnalyzer._logger.info("从打包的pkl中读取数据中...")
-        bundle = self._load_data()
-        if bundle:
-            FileAnalyzer._logger.info("读取成功，将继续分析")
-
-        result_df = self._calculater(bundle)
-        if result_df is not None and not result_df.empty:
-            self._ana_res = result_df
-            if storage:
-                self._data_storage(result_df, "pkl")
-                self._data_storage(result_df, "csv")
-            return result_df
-        else:
-            DataAnalyzer._logger.error("结果矩阵为空")
-            raise
+        return self._data_analyzer()
 
 
 if __name__ == "__main__":
@@ -350,5 +343,5 @@ if __name__ == "__main__":
     test_tar_gene = "Polb"
     test_cfg = Config(tar_gene=test_tar_gene, gse_id=test_gse_id)
     test_analyzer = FileAnalyzer(test_cfg)
-    test_res_df = test_analyzer.calculate
+    test_gene_corr = test_analyzer.calculate()
     print(test_analyzer.significant)

@@ -6,9 +6,7 @@ from typing import Optional, Dict
 
 import pandas as pd
 
-from modules.utils import loggers
-from modules.utils.config_manager import Config
-from modules.utils.parse_interpreter import parse_interpreter
+from utils import loggers, Config, parse_user_input
 
 
 class DataLoader:
@@ -66,14 +64,11 @@ class DataLoader:
 
         Returns:
             self._data: 存储的字典数据
-
-        Raises:
-            RuntimeError: 数据不存在时抛出错误
         """
         if not self._data:
             gse = self._get_gse()
             self._user_selection_flow(gse)
-            data = self._build_bundle()
+            data = self._build_pack()
             if not data:
                 raise RuntimeError("数据未下载创建")
             if data:
@@ -89,9 +84,6 @@ class DataLoader:
 
         Returns:
             local_path: 下载文件所在位置
-
-        Raises:
-            Exception: 下载错误时抛出
         """
         # 确定本地位置
         data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
@@ -129,12 +121,6 @@ class DataLoader:
 
         Returns:
             gse: 下载的数据包
-
-        Raises:
-            TypeError: 输入非字符串时抛出错误
-            ValueError: GSE ID不合规时抛出
-            FileNotFoundError: 未发现所需补充文件时抛出
-            Exception: 其他错误时抛出
         """
         # 读取配置项
         data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
@@ -196,7 +182,7 @@ class DataLoader:
             for i, url in enumerate(candidates):
                 print(f"[{i}] {os.path.basename(url)}")
 
-            selected_idx = parse_interpreter(prompt="请输入需要的矩阵序号(如1:8,11):", max_length=len(candidates))
+            selected_idx = parse_user_input(prompt="请输入需要的矩阵序号(如1:8,11):", max_length=len(candidates))
             selected_urls = [candidates[i] for i in selected_idx]
 
             # 下载选中的文件
@@ -244,7 +230,7 @@ class DataLoader:
                 print(f"[{i}] {group_name}")
 
             # 故技重施
-            selected_group_indices = parse_interpreter(
+            selected_group_indices = parse_user_input(
                 prompt="请输入需要的矩阵序号(如1:8,11，输入‘m’重新选择列):",
                 max_length=len(unique_groups),
                 whitelist="m"
@@ -255,7 +241,7 @@ class DataLoader:
                 print("\n--- 所有元数据列 ---")
                 for i, col in enumerate(meta.columns):  # 内层循环选列
                     print(f"[{i}] {col}")
-                selected_col = parse_interpreter(
+                selected_col = parse_user_input(
                     prompt="请选择(可能)包含分组信息的列序号:",
                     max_length=len(meta.columns)
                 )
@@ -270,14 +256,14 @@ class DataLoader:
                 self._chosen_meta = meta[condition]
                 return
 
-    def _build_bundle(self) -> Optional[dict]:
+    def _build_pack(self) -> Optional[dict]:
         """打包处理过的数据
 
         Returns:
-            bundle: 打包过的数据，键为矩阵名，值为矩阵
+            meta_matrix_pack: 打包过的数据，键为矩阵名，值为矩阵
         """
         # 读取配置
-        data_dir = self.cfg.data_dir
+        data_dir = os.path.join(self.cfg.data_dir, self.cfg.gse_id)
         gse_id = self.cfg.gse_id
         tar_gene = self.cfg.tar_gene
 
@@ -290,7 +276,7 @@ class DataLoader:
 
         try:
             # 将data加载到df，并处理
-            bundle = {"meta": chosen_meta}
+            meta_matrix_pack = {"meta": chosen_meta}
             for datafile_name, file_path in downloaded_data.items():
                 DataLoader._logger.info(f"正在将 {datafile_name} 加载至 DataFrame...")
 
@@ -305,7 +291,7 @@ class DataLoader:
 
                 df_temp = pd.read_csv(file_path, sep="\t", compression="gzip", index_col=0)
 
-                bundle[datafile_name] = df_temp
+                meta_matrix_pack[datafile_name] = df_temp
 
                 if strict_mode:
                     # 和meta取交集
@@ -313,7 +299,7 @@ class DataLoader:
                     matrix_aligned = df_temp[common_samples]
                     meta_aligned = chosen_meta.loc[common_samples]
 
-                    bundle[datafile_name] = {
+                    meta_matrix_pack[datafile_name] = {
                         "matrix_aligned": matrix_aligned,
                         "meta_aligned": meta_aligned
                     }
@@ -340,20 +326,20 @@ class DataLoader:
                     except Exception as e:
                         print(f"Debug 过程中出现错误: {e}")
 
-            if not bundle:
+            if not meta_matrix_pack:
                 raise Exception("没有获取到任何有效矩阵")
 
             if storage:
                 # 存储为pickle文件
-                save_path = os.path.join(data_dir, "pkl", f"{gse_id}_processed_bundle.pkl")
+                save_path = os.path.join(data_dir, "pkl", f"{gse_id}_processed_pack.pkl")
                 os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                pd.to_pickle(bundle, save_path)
+                pd.to_pickle(meta_matrix_pack, save_path)
 
                 if os.path.exists(save_path):
-                    DataLoader._logger.info(f"{gse_id}_processed_bundle.pkl已存储完成！")
+                    DataLoader._logger.info(f"{gse_id}_processed_pack.pkl已存储完成！")
 
-            self._data = bundle
-            return bundle
+            self._data = meta_matrix_pack
+            return meta_matrix_pack
 
         except Exception as e:
             DataLoader._logger.error(f"【未知错误】:{e}")
@@ -364,4 +350,4 @@ if __name__ == "__main__":
     test_tar_gene = "Polb"
     test_cfg = Config(tar_gene=test_tar_gene, gse_id=test_gse_id)
     loader = DataLoader(test_cfg)
-    data_bundle = loader.loader()
+    data_pack = loader.loader()

@@ -1,7 +1,7 @@
 import os
 
 # 路径配置
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 RESULT_DIR = os.path.join(BASE_DIR, "res")
 FIGURE_DIR = os.path.join(RESULT_DIR, "figures")
