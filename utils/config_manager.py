@@ -14,6 +14,7 @@ class Config:
     storage: bool = True
     strict_mode: bool = False
     debug: bool = False
+    log_threshold: int = 50
     p_threshold: float = 0.05
     signs: List[str] = field(default_factory=lambda: ["positive", "negative"])
 

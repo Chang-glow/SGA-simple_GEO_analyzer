@@ -1,6 +1,7 @@
 import os
 import scipy
 
+import numpy as np
 import pandas as pd
 
 from abc import ABC, abstractmethod
@@ -126,6 +127,48 @@ class Analyzer(ABC):
 
         r, p = scipy.stats.pearsonr(v1, v2)
         return r, p
+
+    def _is_log(self, df: pd.DataFrame) -> bool:
+        """判断数据是否已经 log 转化"""
+        numeric_df = df.select_dtypes(include=[np.number])
+        if numeric_df.empty:
+            return True  # 无数值列，视为已转化（无法判断）
+        max_val = numeric_df.max().max()
+        # 阈值可根据实际数据调整，默认为50
+        return max_val <= self.cfg.log_threshold
+
+    def _clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """清洗单个矩阵，去除NaN，Inf和自动监测log"""
+        df = df.copy()
+
+        # Inf -> NaN
+        df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+        # drop掉NaN行
+        origin_rows = df.shape[0]
+        df.dropna(axis=0, how='any', inplace=True)
+        if df.shape[0] < origin_rows:
+            self._logger.info(f"删除了{origin_rows - df.shape[0]}行NaN/Inf数据")
+
+        # 判断log并转化没有log的矩阵
+        if not self._is_log(df):
+            self._logger.warning("原始数据未log转换，将执行log2(x+1)转换")
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            df[numeric_cols] = np.log2(df[numeric_cols] + 1)
+        else:
+            self._logger.debug("数据已log转换，跳过该步骤")
+
+        return df
+
+    def _clean_pack(self, raw_pack: dict) -> dict:
+        if self._meta_matrix_pack is None:
+            cleaned_pack = {}
+            for name, df in raw_pack.items():
+                if name == "meta":
+                    cleaned_pack[name] = df.copy()
+                else:
+                    cleaned_pack[name] = self._clean_dataframe(df)
+            return cleaned_pack
 
     def get_data(self) -> dict:
         """缓存读取数据
@@ -279,6 +322,7 @@ class DataAnalyzer(Analyzer):
         self.meta_matrix_pack = data.meta_matrix_pack
 
     def _load_data(self) -> dict:
+        self.meta_matrix_pack = self._clean_pack(self.meta_matrix_pack)
         return self.meta_matrix_pack
 
     def data_analyzer(self) -> Optional[pd.DataFrame]:
@@ -329,7 +373,8 @@ class FileAnalyzer(Analyzer):
 
     def _load_data(self) -> dict:
         if not self._meta_matrix_pack:
-            self._meta_matrix_pack = self.read_pkl()
+            raw_pack = self.read_pkl()
+            self._meta_matrix_pack = self._clean_pack(raw_pack)
         return self._meta_matrix_pack
 
     def data_analyzer(self) -> Optional[pd.DataFrame]:
