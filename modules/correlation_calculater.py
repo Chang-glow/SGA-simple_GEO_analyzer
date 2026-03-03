@@ -48,7 +48,7 @@ def fetch_gene_vector(df, tar_gene) -> pd.Series:
     # 3. 后处理：清洗聚合
     if vector is not None:
         # 只保留数值列，剔除掉注释列
-        vector = vector.select_dtypes(include=['number'])
+        vector = vector.select_dtypes(include=[np.number])
 
         # 处理多行情况
         if isinstance(vector, pd.DataFrame):
@@ -183,7 +183,11 @@ class Analyzer(ABC):
     @property
     def significant(self):
         """最显著值"""
-        significant_findings = self.calculate()[self.calculate()['P_value'] < 0.05].sort_values('R')
+        if self._gene_corr is None:
+            df = self.calculate()
+        else:
+            df = self._gene_corr
+        significant_findings = df[df['P_value'] < 0.05].sort_values('R')
         return significant_findings
 
     def calculate(self) -> pd.DataFrame:

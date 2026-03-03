@@ -6,13 +6,12 @@ import time
 
 from modules import DataLoader, Analyzer, FigurePlotter
 
-from utils import loggers, Config, DataHandler, FIGURE_DIR, dirs_init
+from utils import loggers, Config, DataHandler, FIGURE_DIR
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: Config):
     # 初始化
-    dirs_init()
     logging.getLogger().setLevel(logging.INFO)
     logger = loggers.get_logger()
     logger.info("---欢迎使用本项目---")

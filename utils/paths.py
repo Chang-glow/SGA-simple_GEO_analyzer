@@ -12,3 +12,6 @@ LOGGER_DIR = os.path.join(BASE_DIR, "error_logs")
 def dirs_init():
     for d in [BASE_DIR, DATA_DIR, RESULT_DIR, RESULT_DIR, CONFIG_DIR, LOGGER_DIR]:
         os.makedirs(d, exist_ok=True)
+
+
+dirs_init()
