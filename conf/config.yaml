@@ -1,6 +1,6 @@
-tar_gene: Polb
-gse_id: GSE300437
-data_dir: D:\magic_dir\polb\SGA-simple_GEO_analyzer\data
+tar_gene: BAG3
+gse_id: GSE123456
+data_dir: ..\data
 storage: true
 strict_mode: false
 debug: false

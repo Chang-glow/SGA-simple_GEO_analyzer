@@ -5,6 +5,7 @@
 /error_logs/
 /outputs/
 /res/
+/script_grave/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
