@@ -1,4 +1,4 @@
-# **SGA: Simple GEO Analyzer (v1.0)**
+# **SGA: Simple GEO Analyzer (v1.1)**
 
 **SGA** 是一个为生信初学者和课题组日常科研设计的轻量级、自动化 GEO 数据处理工具。它将复杂的 GEO 数据获取、清洗与相关性分析过程封装为简洁的命令行操作，实现了从原始数据到可视化结果的全流程闭环。
 
@@ -19,21 +19,30 @@
 ## **📂 项目架构**
 
 ```
-SGA-simple_GEO_analyzer/
-├── main.py                 # 项目入口，调度数据获取、分析与绘图全流程
-├── paths.py                # 路径管理，自动初始化项目所需文件夹
-├── data/                   # 存放下载的原始数据及清洗后的 pkl 缓存
-├── error_logs/             # 存放运行过程中的错误日志（含时间戳）
-├── res/                    # 结果输出目录
-│   └── figures/            # 生成的回归分析散点图
-├── conf/                   # Hydra 配置文件存放
-└── modules/                # 核心功能模块
-    ├── data_loader.py      # GEO数据下载、解析、样本筛选与清洗
-    ├── correlation_calculater.py # 相关性计算逻辑（Pearson 相关系数）
-    ├── fig_plotter.py      # 自动化绘图模块（基于 Seaborn）
-    └── utils/
-        ├── loggers.py      # 自定义日志总线，支持控制台彩色输出与文件记录
-        └── config_manager.py # 基于 Hydra 的配置映射与数据传递对象
+SGA/
+├── main.py                      # 项目入口，调度数据获取、分析与绘图全流程
+├── conf/                        # Hydra 配置文件存放
+│   └── config.yaml.template     # 默认配置文件模板（含 tar_gene、gse_id 等参数）
+├── modules/                      # 核心功能模块
+│   ├── __init__.py
+│   ├── data_loader.py            # GEO 数据下载、解析、样本筛选与清洗
+│   ├── correlation_calculater.py # 相关性计算逻辑（Pearson 相关系数）
+│   └── fig_plotter.py            # 自动化绘图模块（基于 Seaborn）
+├── utils/                         # 工具模块
+│   ├── __init__.py
+│   ├── config_manager.py          # 基于 Hydra 的配置映射与数据传递对象
+│   ├── loggers.py                 # 自定义日志总线，支持控制台输出与文件记录
+│   ├── parse_user_input.py        # 用户交互输入解析（如下载矩阵选择、分组筛选）
+│   └── paths.py                   # 路径管理，自动初始化项目所需文件夹
+├── data/                          # 存放下载的原始数据及清洗后的 pkl 缓存（自动生成）
+├── error_logs/                     # 存放运行过程中的错误日志（含时间戳，自动生成）
+├── res/                            # 结果输出目录（自动生成）
+│   └── figures/                    # 生成的回归分析散点图
+├── .gitignore
+├── LICENSE
+├── README.md
+├── environment.yml                 # Conda 环境配置
+└── requirements.txt                # Pip 依赖清单
 ```
 
 ---
@@ -44,29 +53,35 @@ SGA-simple_GEO_analyzer/
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YourUsername/SGA-simple_GEO_analyzer.git
-cd SGA-simple_GEO_analyzer
+git clone https://github.com/YourUsername/SGA.git
+cd SGA
 
-# 使用 Conda 部署环境
+# 使用 Conda 部署环境（推荐）
 conda env create -f environment.yml
 conda activate sga
+
+# 或使用 pip 安装依赖
+pip install -r requirements.txt
 ```
 
 ### **2. 执行分析**
 
 ```bash
-# 运行默认分析 (Polb vs GSE300437)
+# 运行前请修改 conf/config.yaml 中的 tar_gene 和 gse_id 参数
+# 默认配置为 tar_gene: "GENE", gse_id: "GSE123456"，需替换为目标基因和数据集编号
+
+# 启动分析
 python main.py
 
-# 指定其他基因或数据集
+# 也可在命令行覆盖配置（Hydra 语法）
 python main.py tar_gene="Acta2" gse_id="GSE123456"
 ```
 
 ### **3. 查看输出**
 
-- **清洗后的数据**：`data/{GSE_ID}/pkl/`
-- **统计表格 (CSV)**：`data/{GSE_ID}/csv/`
-- **可视化结果**：`res/figures/`
+- **清洗后的数据包**：`data/{GSE_ID}/pkl/`（含 `*_processed_pack.pkl`）  
+- **相关性统计表格**：`data/{GSE_ID}/csv/`（含 `*_correlation_summary.csv`）  
+- **可视化结果**：`res/figures/`（每个符合条件的基因对生成一张散点图）
 
 ---
 
@@ -74,16 +89,11 @@ python main.py tar_gene="Acta2" gse_id="GSE123456"
 
 ### ✨ 功能增强
 - [ ] **多基因热图 (Multi-gene Heatmap)**：增加对多个标识物基因相关性矩阵的全局热图展示，支持层次聚类。
-- [ ] **自动归一化检测**：引入分布判定算法，自动识别原始计数矩阵是否需要进行 $\log_2 x$ 转换。
-
-### 🏗️ 架构优化
-- [ ] **解耦下载与清洗逻辑**：将 DataLoader 拆分为独立子模块，增加“严格比对”自动判定机制，确保元数据与矩阵列名完美匹配。
 
 ### 📊 数据与拓展
 - [ ] **动态标识物库**：结合本地数据库与在线 API 调用（如 NCBI Entrez），实现标识物动态获取，不再局限于肝纤维化硬编码。
-
-### 🌐 国际化 (i18n)
-- [ ] 支持中/英双语日志输出与分析报告生成，提升工具在国际学术社区的可移植性。
+- [ ] **多数据源解析**：不局限于 GEO，支持更多公共数据平台（如 ArrayExpress、TCGA）或用户本地数据上传。
+- [ ] **多分析模式**：不局限于基因的皮尔逊相关，扩展至其他统计方法（如斯皮尔曼相关、差异表达分析、聚类分析等）。
 
 ---
 
@@ -91,4 +101,4 @@ python main.py tar_gene="Acta2" gse_id="GSE123456"
 
 如果你在处理特定 GEO 数据集时遇到报错，欢迎提交 Issue。非常欢迎任何关于分析逻辑的改进建议！
 
-*📅 Update at: 2026-02-20*
+*📅 Update at: 2026-03-08*

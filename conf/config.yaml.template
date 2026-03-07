@@ -1,4 +1,4 @@
-tar_gene: BAG3
+tar_gene: GENE
 gse_id: GSE123456
 data_dir: ..\data
 storage: true

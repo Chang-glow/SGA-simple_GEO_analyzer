@@ -1,6 +1,7 @@
 **/__pycache__/
 .idea/
 *.log
+/conf/config.yaml
 /data/
 /error_logs/
 /outputs/
@@ -212,3 +213,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# tree
+get_tree.py
