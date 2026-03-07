@@ -1,0 +1,17 @@
+tar_gene: BAG3
+gse_id: GSE123456
+data_dir: ..\data
+storage: true
+strict_mode: false
+debug: false
+p_threshold: 0.05
+signs:
+- positive
+- negative
+
+# hydra配置
+hydra:
+  job_logging:
+    handlers:
+      console:
+        level: INFO
