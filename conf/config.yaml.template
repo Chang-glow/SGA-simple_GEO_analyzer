@@ -5,6 +5,7 @@ storage: true
 strict_mode: false
 debug: false
 p_threshold: 0.05
+log_threshold: 10
 signs:
 - positive
 - negative

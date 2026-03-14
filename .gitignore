@@ -1,5 +1,6 @@
 **/__pycache__/
 .idea/
+/.venv/
 *.log
 /conf/config.yaml
 /data/
@@ -7,6 +8,8 @@
 /outputs/
 /res/
 /script_grave/
+/oryx-build-commands.txt
+/environment.yml.bak
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
